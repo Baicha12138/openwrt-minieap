@@ -1,4 +1,4 @@
-name: Build OpenWrt MiniEAP for ImmortalWrt 18.06
+name: Build OpenWrt MiniEAP with ImmortalWrt SDK
 
 on:
   push:
@@ -12,42 +12,32 @@ jobs:
     runs-on: ubuntu-20.04
 
     steps:
-    - name: Checkout ImmortalWrt SDK
+    - name: Checkout MiniEAP
       uses: actions/checkout@v2
       with:
-        repository: immortalwrt/immortalwrt
-        ref: openwrt-18.06  # ImmortalWrt 18.06 分支
+        repository: kongfl888/openwrt-minieap
+        path: package/minieap
 
-    - name: Update and install dependencies
+    - name: Download ImmortalWrt SDK
       run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential ccache ecj fastjar file g++ gawk \
-        gettext git java-propose-classpath libelf-dev libncurses5-dev \
-        libncursesw5-dev libssl-dev python python2.7-dev python3 unzip wget \
-        python3-distutils python3-setuptools rsync subversion swig time \
-        xsltproc zlib1g-dev
+        wget https://downloads.immortalwrt.org/releases/18.06.9/targets/x86/64/immortalwrt-sdk-18.06.9-x86-64_gcc-8.4.0_musl.Linux-x86_64.tar.xz
+        tar xJf immortalwrt-sdk-*.tar.xz
+        mv immortalwrt-sdk-* sdk
 
     - name: Update feeds
+      working-directory: sdk
       run: |
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
-    - name: Clone MiniEAP
-      run: |
-        git clone https://github.com/kongfl888/openwrt-minieap.git package/minieap
-
-    - name: Configure ImmortalWrt
+    - name: Configure SDK
+      working-directory: sdk
       run: |
         echo 'CONFIG_PACKAGE_minieap=y' >> .config
         make defconfig
 
-    - name: Download package
-      run: |
-        make download -j8
-        find dl -size -1024c -exec ls -l {} \;
-        find dl -size -1024c -exec rm -f {} \;
-
     - name: Build MiniEAP
+      working-directory: sdk
       run: |
         make package/minieap/compile V=s -j$(nproc)
 
@@ -55,4 +45,4 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: minieap-package
-        path: bin/packages/*/base/minieap_*.ipk
+        path: sdk/bin/packages/*/base/minieap_*.ipk
