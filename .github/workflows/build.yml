@@ -58,8 +58,35 @@ jobs:
       run: |
         make package/minieap/compile V=s -j$(nproc)
 
+    - name: Check build log
+      if: failure()
+      run: |
+        cat logs/package/minieap/compile.txt || true
+
+    - name: List bin directory
+      run: |
+        find bin -type f
+
+    - name: Check if package was built
+      run: |
+        if [ -z "$(find bin -name 'minieap*')" ]; then
+          echo "MiniEAP package not found"
+          exit 1
+        else
+          echo "MiniEAP package found"
+        fi
+
     - name: Upload artifact
       uses: actions/upload-artifact@v2
       with:
         name: minieap-package
-        path: bin/packages/*/base/minieap_*.ipk
+        path: |
+          bin/packages/**/minieap*
+          bin/targets/**/*minieap*
+
+    - name: Upload build logs
+      if: failure()
+      uses: actions/upload-artifact@v2
+      with:
+        name: build-logs
+        path: logs/
