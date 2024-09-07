@@ -1,4 +1,4 @@
-name: Build OpenWrt MiniEAP with ImmortalWrt SDK
+name: Build OpenWrt MiniEAP for ImmortalWrt 18.06
 
 on:
   push:
@@ -12,32 +12,49 @@ jobs:
     runs-on: ubuntu-20.04
 
     steps:
-    - name: Checkout MiniEAP
+    - name: Checkout ImmortalWrt SDK
       uses: actions/checkout@v2
       with:
-        repository: kongfl888/openwrt-minieap
-        path: package/minieap
+        repository: immortalwrt/immortalwrt
+        ref: openwrt-18.06
+        fetch-depth: 0
 
-    - name: Download ImmortalWrt SDK
+    - name: Update and install dependencies
       run: |
-        wget https://downloads.immortalwrt.org/releases/18.06.9/targets/x86/64/immortalwrt-sdk-18.06.9-x86-64_gcc-8.4.0_musl.Linux-x86_64.tar.xz
-        tar xJf immortalwrt-sdk-*.tar.xz
-        mv immortalwrt-sdk-* sdk
+        sudo apt-get update
+        sudo apt-get install -y build-essential ccache ecj fastjar file g++ gawk \
+        gettext git java-propose-classpath libelf-dev libncurses5-dev \
+        libncursesw5-dev libssl-dev python python2.7-dev python3 unzip wget \
+        python3-distutils python3-setuptools rsync subversion swig time \
+        xsltproc zlib1g-dev
 
     - name: Update feeds
-      working-directory: sdk
       run: |
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
-    - name: Configure SDK
-      working-directory: sdk
+    - name: Clone MiniEAP
+      run: |
+        git clone https://github.com/kongfl888/openwrt-minieap.git package/minieap
+
+    - name: Configure ImmortalWrt
       run: |
         echo 'CONFIG_PACKAGE_minieap=y' >> .config
+        echo 'CONFIG_TOOLCHAINOPTS=y' >> .config
+        echo 'CONFIG_MUSL_DISABLE_CRYPT_SIZE_HACK=y' >> .config
         make defconfig
 
+    - name: Download package
+      run: |
+        make download -j8
+        find dl -size -1024c -exec ls -l {} \;
+        find dl -size -1024c -exec rm -f {} \;
+
+    - name: Build toolchain
+      run: |
+        make toolchain/install -j$(nproc)
+
     - name: Build MiniEAP
-      working-directory: sdk
       run: |
         make package/minieap/compile V=s -j$(nproc)
 
@@ -45,4 +62,4 @@ jobs:
       uses: actions/upload-artifact@v2
       with:
         name: minieap-package
-        path: sdk/bin/packages/*/base/minieap_*.ipk
+        path: bin/packages/*/base/minieap_*.ipk
