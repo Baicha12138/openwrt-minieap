@@ -39,6 +39,12 @@ jobs:
 
     - name: Configure ImmortalWrt
       run: |
+        # 清理上一次的配置
+        make distclean
+        # 设置目标架构为 aarch64
+        echo 'CONFIG_TARGET_aarch64=y' >> .config
+        echo 'CONFIG_TARGET_aarch64_generic=y' >> .config
+        echo 'CONFIG_TARGET_aarch64_generic_DEVICE_generic=y' >> .config
         echo 'CONFIG_PACKAGE_minieap=y' >> .config
         echo 'CONFIG_TOOLCHAINOPTS=y' >> .config
         echo 'CONFIG_MUSL_DISABLE_CRYPT_SIZE_HACK=y' >> .config
@@ -82,7 +88,7 @@ jobs:
         name: minieap-package
         path: |
           bin/packages/**/minieap*
-          bin/targets/**/*minieap*
+          bin/targets/** /*minieap*
 
     - name: Upload build logs
       if: failure()
