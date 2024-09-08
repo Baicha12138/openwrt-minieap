@@ -39,16 +39,20 @@ jobs:
 
     - name: Configure ImmortalWrt
       run: |
-        # 清理上一次的配置
         make distclean
-        # 设置目标架构为 aarch64
-        echo 'CONFIG_TARGET_aarch64=y' >> .config
-        echo 'CONFIG_TARGET_aarch64_generic=y' >> .config
-        echo 'CONFIG_TARGET_aarch64_generic_DEVICE_generic=y' >> .config
+        echo 'CONFIG_TARGET_armvirt=y' >> .config
+        echo 'CONFIG_TARGET_armvirt_64=y' >> .config
+        echo 'CONFIG_TARGET_armvirt_64_Default=y' >> .config
         echo 'CONFIG_PACKAGE_minieap=y' >> .config
         echo 'CONFIG_TOOLCHAINOPTS=y' >> .config
         echo 'CONFIG_MUSL_DISABLE_CRYPT_SIZE_HACK=y' >> .config
         make defconfig
+
+    - name: Verify configuration
+      run: |
+        grep CONFIG_TARGET .config
+        grep CONFIG_PACKAGE_minieap .config
+        echo "ARCH: $(grep CONFIG_ARCH .config | cut -d'=' -f2)"
 
     - name: Download package
       run: |
@@ -60,27 +64,20 @@ jobs:
       run: |
         make toolchain/install -j$(nproc)
 
+    - name: Check environment
+      run: |
+        echo "ARCH: $ARCH"
+        echo "TARGET_CROSS: $TARGET_CROSS"
+        echo "CC: $CC"
+
     - name: Build MiniEAP
       run: |
-        make package/minieap/compile V=s -j$(nproc)
+        make package/minieap/{clean,compile} V=s
 
-    - name: Check build log
-      if: failure()
+    - name: Check compiled files
       run: |
-        cat logs/package/minieap/compile.txt || true
-
-    - name: List bin directory
-      run: |
-        find bin -type f
-
-    - name: Check if package was built
-      run: |
-        if [ -z "$(find bin -name 'minieap*')" ]; then
-          echo "MiniEAP package not found"
-          exit 1
-        else
-          echo "MiniEAP package found"
-        fi
+        find bin/ -name "*minieap*"
+        file bin/packages/*/base/minieap*.ipk
 
     - name: Upload artifact
       uses: actions/upload-artifact@v2
